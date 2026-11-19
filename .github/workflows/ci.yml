@@ -24,7 +24,7 @@ jobs:
           path: results/
           if-no-files-found: ignore
 
-  report:
+   report:
     needs: test
     if: always()
     # Set repo variable REPORT_RUNNER (e.g. self-hosted) to run on your laptop.
@@ -32,6 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        if: runner.environment == 'github-hosted'
         with:
           python-version: "3.12"
       - uses: actions/download-artifact@v4
