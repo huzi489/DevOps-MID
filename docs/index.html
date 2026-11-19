@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Assignment Submission Portal (Demo)</title>
+<style>body{font-family:system-ui,sans-serif;max-width:640px;margin:2rem auto;padding:0 1rem}
+input,button{display:block;width:100%;padding:.6rem;margin:.4rem 0;box-sizing:border-box}
+.err{color:#b00020}.ok{color:#0a7d2c}</style></head><body>
+<h1>Assignment Submission Portal</h1><p><small>Static demo: data is stored in your browser only.</small></p>
+<form id="f"><input name="name" placeholder="Name"><input name="registration_number" placeholder="Registration number">
+<input name="assignment_title" placeholder="Assignment title"><input name="submission_url" placeholder="Submission URL (https://...)">
+<button>Submit</button></form><p id="msg"></p><h2>Submissions</h2><ul id="list"></ul>
+<script>
+const KEY='submissions',msg=document.getElementById('msg'),list=document.getElementById('list');
+const get=()=>{try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return []}};
+function validUrl(v){try{const u=new URL(v);return /^https?:$/.test(u.protocol)&&(u.hostname.includes('.')||u.hostname==='localhost')&&!/\s/.test(v)}catch(e){return false}}
+function render(){list.innerHTML='';get().forEach(s=>{const li=document.createElement('li');
+li.textContent=`${s.name} (${s.registration_number}) - ${s.assignment_title} - ${s.submission_url}`;list.appendChild(li)})}
+document.getElementById('f').onsubmit=e=>{e.preventDefault();
+const d=Object.fromEntries(new FormData(e.target));for(const k in d)d[k]=d[k].trim();
+const labels={name:'Name',registration_number:'Registration number',assignment_title:'Assignment title',submission_url:'Submission URL'};
+const errs=Object.keys(labels).filter(k=>!d[k]).map(k=>labels[k]+' is required.');
+if(d.submission_url&&!validUrl(d.submission_url))errs.push('Submission URL is invalid.');
+if(errs.length){msg.className='err';msg.textContent=errs.join(' ');return}
+try{localStorage.setItem(KEY,JSON.stringify([...get(),d]))}catch(x){}
+msg.className='ok';msg.textContent='Submission saved.';e.target.reset();render()};
+render();
+</script></body></html>

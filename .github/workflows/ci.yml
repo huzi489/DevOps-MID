@@ -1,0 +1,89 @@
+name: CI
+
+on: push
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Run tests
+        run: pytest -v --junitxml=results/junit.xml
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: results/
+          if-no-files-found: ignore
+
+  report:
+    needs: test
+    if: always()
+    # Set repo variable REPORT_RUNNER (e.g. self-hosted) to run on your laptop.
+    runs-on: ${{ vars.REPORT_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: test-results
+          path: results/
+        continue-on-error: true
+      - name: Build report and send to receiver
+        env:
+          REPORT_URL: ${{ secrets.REPORT_URL }}
+          RECEIVER_TOKEN: ${{ secrets.RECEIVER_TOKEN }}
+        run: python scripts/build_report.py
+
+  email:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: test-results
+          path: results/
+        continue-on-error: true
+      - name: Build report
+        run: python scripts/build_report.py --no-post
+      - name: Send email
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python scripts/send_email.py
+
+  deploy:
+    needs: test   # runs only if every test passed
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - id: deployment
+        uses: actions/deploy-pages@v4
